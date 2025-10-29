@@ -80,33 +80,81 @@ class NewspaperGenerator:
         .article:last-child {{
             border-bottom: none;
         }}
+        .article-type {{
+            font-size: 11px;
+            font-weight: bold;
+            color: #0066cc;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }}
         .article-headline {{
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 10px;
             color: #000;
+            line-height: 1.3;
         }}
         .article-meta {{
             font-size: 12px;
             color: #666;
             margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #ddd;
         }}
         .article-tldr {{
             font-style: italic;
             margin: 15px 0;
-            color: #555;
+            padding: 15px;
+            background-color: #fffef0;
+            border-left: 4px solid #ffc107;
+            color: #333;
+            font-size: 15px;
+        }}
+        .article-tldr::before {{
+            content: "TL;DR: ";
+            font-weight: bold;
+            color: #f57c00;
+        }}
+        .article-abstract {{
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-left: 4px solid #2196F3;
+            font-size: 14px;
+            line-height: 1.6;
+        }}
+        .article-abstract strong {{
+            color: #1976D2;
         }}
         .article-bullets {{
             margin: 15px 0;
+            padding-left: 20px;
         }}
         .article-bullets li {{
             margin: 8px 0;
+            line-height: 1.5;
+        }}
+        .article-key-points {{
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+        }}
+        .article-key-points strong {{
+            color: #2E7D32;
+            display: block;
+            margin-bottom: 10px;
         }}
         .article-significance {{
-            background-color: #f0f8ff;
+            background-color: #fff3e0;
             padding: 15px;
             margin: 15px 0;
-            border-left: 3px solid #0066cc;
+            border-left: 4px solid #FF9800;
+        }}
+        .article-significance strong {{
+            color: #E65100;
         }}
         .article-links {{
             margin-top: 15px;
@@ -241,15 +289,18 @@ class NewspaperGenerator:
         # Generate outputs
         paths = {}
         
+        # Get current datetime for filename
+        current_datetime = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        
         # 1. JSON
-        json_path = date_dir / 'newspaper.json'
+        json_path = date_dir / f'newspaper_{current_datetime}.json'
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(newspaper_data, f, indent=2, ensure_ascii=False)
         paths['json'] = str(json_path)
         self.logger.info(f"Generated JSON: {json_path}")
         
         # 2. HTML
-        html_path = date_dir / 'newspaper.html'
+        html_path = date_dir / f'newspaper_{current_datetime}.html'
         html_content = self._generate_html(newspaper_data)
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
@@ -259,7 +310,7 @@ class NewspaperGenerator:
         # 3. PDF (if enabled)
         if 'pdf' in self.config.get('output', {}).get('formats', []):
             try:
-                pdf_path = self._generate_pdf(html_path, date_dir)
+                pdf_path = self._generate_pdf(html_path, date_dir, current_datetime)
                 if pdf_path:
                     paths['pdf'] = str(pdf_path)
                     self.logger.info(f"Generated PDF: {pdf_path}")
@@ -360,6 +411,13 @@ class NewspaperGenerator:
         """Generate HTML for a single article"""
         html = '<div class="article">'
         
+        # Document type indicator
+        doc_type = item.get('type', 'article').upper()
+        categories = item.get('categories', [])
+        if categories:
+            doc_type += f" - {', '.join(categories[:2])}"
+        html += f'<div class="article-type">📄 {doc_type}</div>'
+        
         # Headline
         headline = item.get('headline', item.get('title', 'Untitled'))
         html += f'<h3 class="article-headline">{headline}</h3>'
@@ -373,11 +431,22 @@ class NewspaperGenerator:
         
         html += f'<div class="article-meta">'
         if authors:
-            html += f'{authors} | '
-        html += f'{source}'
+            html += f'<strong>Authors:</strong> {authors} | '
+        html += f'<strong>Source:</strong> {source}'
         if date:
-            html += f' | {date}'
+            html += f' | <strong>Published:</strong> {date}'
         html += '</div>'
+        
+        # Abstract/Summary - What this document is about
+        abstract = item.get('abstract', '')
+        if abstract:
+            # Truncate if too long
+            if len(abstract) > 500:
+                abstract = abstract[:497] + '...'
+            html += f'<div class="article-abstract">'
+            html += f'<strong>📋 About this document:</strong><br>'
+            html += f'{abstract}'
+            html += '</div>'
         
         # TL;DR
         if item.get('tldr'):
@@ -385,15 +454,18 @@ class NewspaperGenerator:
         
         # Bullets
         if item.get('bullets'):
+            html += '<div class="article-key-points">'
+            html += '<strong>🔑 Key Points:</strong>'
             html += '<ul class="article-bullets">'
             for bullet in item['bullets']:
                 html += f'<li>{bullet}</li>'
             html += '</ul>'
+            html += '</div>'
         
         # Significance
         if item.get('significance'):
             html += f'<div class="article-significance">'
-            html += f'<strong>Why it matters:</strong> {item["significance"]}'
+            html += f'<strong>💡 Why it matters:</strong> {item["significance"]}'
             html += '</div>'
         
         # Links
@@ -410,9 +482,12 @@ class NewspaperGenerator:
         
         return html
     
-    def _generate_pdf(self, html_path: Path, output_dir: Path) -> Path:
+    def _generate_pdf(self, html_path: Path, output_dir: Path, datetime_str: str = None) -> Path:
         """Generate PDF from HTML"""
-        pdf_path = output_dir / 'newspaper.pdf'
+        if datetime_str:
+            pdf_path = output_dir / f'newspaper_{datetime_str}.pdf'
+        else:
+            pdf_path = output_dir / 'newspaper.pdf'
         
         pdf_engine = self.config.get('output', {}).get('pdf_engine', 'wkhtmltopdf')
         
