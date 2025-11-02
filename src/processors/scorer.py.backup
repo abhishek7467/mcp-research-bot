@@ -1,0 +1,382 @@
+"""
+Relevance Scorer - Scores and ranks items by relevance, recency, credibility, and novelty
+
+Quick test of the MCP system with Gemini only
+
+Tests a minimal pipeline run with a small number of itemsUses OpenAI or Gemini embeddings for semantic similarity
+
+""""""
+
+
+
+import sysimport os
+
+import osfrom typing import Dict, Any, List
+
+import logging
+
+# Add src to pathfrom datetime import datetime
+
+sys.path.insert(0, os.path.dirname(__file__))import numpy as np
+
+
+
+print("=" * 60)try:
+
+print("MCP Server - Quick Test with Gemini")    from openai import OpenAI
+
+print("=" * 60)except ImportError:
+
+    OpenAI = None
+
+# Load environment
+
+from dotenv import load_dotenvtry:
+
+load_dotenv()    import google.generativeai as genai
+
+except ImportError:
+
+# Check Gemini key    genai = None
+
+gemini_key = os.getenv('GEMINI_API_KEY')
+
+if not gemini_key:
+
+    print("\n❌ ERROR: GEMINI_API_KEY not found in .env")class RelevanceScorer:
+
+    print("   Please check your .env file")    """Scores and ranks items"""
+
+    sys.exit(1)    
+
+    def __init__(self, config: Dict[str, Any], logger: logging.Logger):
+
+print(f"\n✓ Gemini API Key found: {gemini_key[:20]}...")        """
+
+        Initialize relevance scorer
+
+# Test imports        
+
+print("\n📦 Testing imports...")        Args:
+
+try:            config: Configuration dictionary
+
+    from src.utils.config_loader import ConfigLoader            logger: Logger instance
+
+    from src.utils.logger import setup_logger        """
+
+    from src.ai.summarizer import SummarizerAgent        self.config = config
+
+    from src.discovery.discovery_manager import DiscoveryManager        self.logger = logger
+
+    print("✓ All modules imported successfully")        
+
+except Exception as e:        # Determine which embedding service to use
+
+    print(f"❌ Import error: {str(e)}")        self.embedding_service = config.get('ai_models', {}).get('embeddings', 'gemini')
+
+    sys.exit(1)        
+
+        # Initialize embedding clients
+
+# Load config        self.openai_client = None
+
+print("\n⚙️  Loading configuration...")        self.gemini_configured = False
+
+try:        
+
+    config = ConfigLoader('config/config.yaml').load()        # Try OpenAI first if configured
+
+    print(f"✓ Config loaded")        if self.embedding_service == 'openai':
+
+    print(f"  Summarizer: {config['ai_models']['summarizer']}")            openai_key = config.get('api_keys', {}).get('openai', os.getenv('OPENAI_API_KEY'))
+
+    print(f"  Gemini model: {config['ai_models']['gemini_model']}")            if openai_key and OpenAI:
+
+    print(f"  Embeddings: {config['ai_models']['embeddings']}")                self.openai_client = OpenAI(api_key=openai_key)
+
+except Exception as e:                self.embedding_model = config.get('ai_models', {}).get('openai_embedding_model', 'text-embedding-3-small')
+
+    print(f"❌ Config error: {str(e)}")                self.logger.info("Using OpenAI for embeddings")
+
+    sys.exit(1)            else:
+
+                self.logger.warning("OpenAI not available, falling back to keyword matching")
+
+# Setup logger        
+
+logger = setup_logger(level='INFO')        # Try Gemini if configured or as fallback
+
+        if self.embedding_service == 'gemini' or not self.openai_client:
+
+# Test Gemini summarizer            gemini_key = config.get('api_keys', {}).get('gemini', os.getenv('GEMINI_API_KEY'))
+
+print("\n🤖 Testing Gemini Summarizer...")            if gemini_key and genai:
+
+try:                genai.configure(api_key=gemini_key)
+
+    summarizer = SummarizerAgent(config, logger)                self.gemini_configured = True
+
+                    self.embedding_service = 'gemini'
+
+    # Create a test item                self.logger.info("Using Gemini for embeddings")
+
+    test_item = {            elif not self.openai_client:
+
+        'title': 'Advances in Graph Neural Networks',                self.logger.warning("No embedding service available - using keyword matching only")
+
+        'authors': ['John Doe', 'Jane Smith'],        
+
+        'published_at': '2025-10-28',        # Scoring weights
+
+        'source': 'arXiv',        weights = config.get('scoring', {}).get('weights', {})
+
+        'abstract': 'We present a novel approach to graph neural networks that achieves state-of-the-art results on several benchmark datasets.',        self.weight_relevance = weights.get('relevance', 0.35)
+
+        'text': 'Graph neural networks have shown remarkable success in recent years...'        self.weight_recency = weights.get('recency', 0.25)
+
+    }        self.weight_credibility = weights.get('credibility', 0.20)
+
+            self.weight_novelty = weights.get('novelty', 0.20)
+
+    print("  Generating summary for test article...")        
+
+    result = summarizer.summarize(test_item)        # Publisher credibility scores (you can expand this)
+
+            self.credibility_scores = {
+
+    if 'headline' in result:            'arxiv': 0.85,
+
+        print(f"\n  ✓ Summary generated successfully!")            'pubmed': 0.90,
+
+        print(f"    Headline: {result['headline']}")            'nature': 0.95,
+
+        print(f"    TL;DR: {result.get('tldr', 'N/A')[:100]}...")            'science': 0.95,
+
+        print(f"    Bullets: {len(result.get('bullets', []))} points")            'cell': 0.90,
+
+    else:            'lancet': 0.90,
+
+        print("  ⚠️  Summary generated but missing headline")            'mit technology review': 0.85,
+
+                    'ars technica': 0.75,
+
+except Exception as e:            'the verge': 0.70,
+
+    print(f"  ❌ Summarizer error: {str(e)}")            'default': 0.60
+
+    import traceback        }
+
+    traceback.print_exc()    
+
+    def score_and_rank(self, items: List[Dict[str, Any]], topics: List[str]) -> List[Dict[str, Any]]:
+
+# Test discovery (just arXiv)        """
+
+print("\n🔍 Testing Discovery (arXiv only)...")        Score and rank items
+
+try:        
+
+    discovery = DiscoveryManager(config, logger)        Args:
+
+                items: List of items to score
+
+    # Discover a few items            topics: List of topics for relevance scoring
+
+    print("  Searching for 'machine learning' papers...")            
+
+    candidates = discovery._discover_arxiv(        Returns:
+
+        topics=['machine learning'],            List of items sorted by score (descending)
+
+        start_date='2025-10-25',        """
+
+        end_date='2025-10-29'        self.logger.info(f"Scoring {len(items)} items...")
+
+    )        
+
+            # Get topic embeddings
+
+    print(f"  ✓ Found {len(candidates)} papers")        topic_embeddings = []
+
+    if candidates:        if self.openai_client:
+
+        print(f"    First: {candidates[0]['title'][:60]}...")            for topic in topics:
+
+                        emb = self._get_embedding(topic)
+
+except Exception as e:                if emb is not None:
+
+    print(f"  ❌ Discovery error: {str(e)}")                    topic_embeddings.append(emb)
+
+        
+
+print("\n" + "=" * 60)        # Score each item
+
+print("✅ Quick test complete!")        for item in items:
+
+print("=" * 60)            scores = {
+
+print("\nYour Gemini setup is working! You can now run:")                'relevance': self._score_relevance(item, topics, topic_embeddings),
+
+print("  python mcp_orchestrator.py --topics 'AI' --max-items 10")                'recency': self._score_recency(item),
+
+print()                'credibility': self._score_credibility(item),
+
+                'novelty': self._score_novelty(item)
+            }
+            
+            # Calculate weighted total
+            total_score = (
+                scores['relevance'] * self.weight_relevance +
+                scores['recency'] * self.weight_recency +
+                scores['credibility'] * self.weight_credibility +
+                scores['novelty'] * self.weight_novelty
+            )
+            
+            item['score'] = total_score
+            item['score_breakdown'] = scores
+        
+        # Sort by score
+        items.sort(key=lambda x: x.get('score', 0), reverse=True)
+        
+        self.logger.info(f"Scoring complete. Top score: {items[0].get('score', 0):.3f}")
+        
+        return items
+    
+    def _score_relevance(self, item: Dict[str, Any], topics: List[str], topic_embeddings: List) -> float:
+        """Score relevance using embeddings"""
+        if not self.openai_client or not topic_embeddings:
+            # Fallback: keyword matching
+            text = f"{item.get('title', '')} {item.get('abstract', '')}".lower()
+            matches = sum(1 for topic in topics if topic.lower() in text)
+            return min(matches / len(topics), 1.0)
+        
+        # Get item embedding
+        item_text = f"{item.get('title', '')} {item.get('abstract', '')}"
+        item_embedding = self._get_embedding(item_text)
+        
+        if item_embedding is None:
+            return 0.5  # Default
+        
+        # Calculate max similarity with topics
+        max_similarity = 0.0
+        for topic_emb in topic_embeddings:
+            similarity = self._cosine_similarity(item_embedding, topic_emb)
+            max_similarity = max(max_similarity, similarity)
+        
+        return max_similarity
+    
+    def _score_recency(self, item: Dict[str, Any]) -> float:
+        """Score based on recency (newer = higher)"""
+        published_str = item.get('published_at', '')
+        
+        if not published_str:
+            return 0.5  # Default for unknown dates
+        
+        try:
+            # Parse date
+            if 'T' in published_str:
+                published = datetime.fromisoformat(published_str.replace('Z', '+00:00'))
+            else:
+                published = datetime.strptime(published_str[:10], '%Y-%m-%d')
+            
+            # Calculate days ago
+            days_ago = (datetime.now() - published).days
+            
+            # Score decays over 30 days
+            if days_ago < 0:
+                return 1.0
+            elif days_ago > 30:
+                return 0.3
+            else:
+                return 1.0 - (days_ago / 30.0) * 0.7
+                
+        except Exception as e:
+            self.logger.debug(f"Date parsing error: {str(e)}")
+            return 0.5
+    
+    def _score_credibility(self, item: Dict[str, Any]) -> float:
+        """Score based on source credibility"""
+        source = item.get('source', '').lower()
+        journal = item.get('journal', '').lower()
+        
+        # Check source first
+        for key, score in self.credibility_scores.items():
+            if key in source:
+                return score
+        
+        # Check journal
+        for key, score in self.credibility_scores.items():
+            if key in journal:
+                return score
+        
+        # Check if has DOI (more credible)
+        if item.get('doi'):
+            return 0.75
+        
+        return self.credibility_scores['default']
+    
+    def _score_novelty(self, item: Dict[str, Any]) -> float:
+        """Score novelty (placeholder - could be enhanced with similarity to past items)"""
+        # For now, just check if it's a preprint vs published
+        source = item.get('source', '').lower()
+        
+        if 'arxiv' in source or 'biorxiv' in source or 'medrxiv' in source:
+            return 0.9  # Preprints are novel
+        elif item.get('doi'):
+            return 0.7  # Published papers
+        else:
+            return 0.6  # News
+    
+    def _get_embedding(self, text: str) -> List[float]:
+        """Get embedding for text using OpenAI or Gemini"""
+        # Try OpenAI first if available
+        if self.openai_client and self.embedding_service == 'openai':
+            try:
+                # Limit text length
+                text = text[:8000]
+                
+                response = self.openai_client.embeddings.create(
+                    model=self.embedding_model,
+                    input=text
+                )
+                
+                return response.data[0].embedding
+                
+            except Exception as e:
+                self.logger.error(f"OpenAI embedding error: {str(e)}")
+        
+        # Try Gemini if available
+        if self.gemini_configured and genai:
+            try:
+                # Limit text length
+                text = text[:8000]
+                
+                result = genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=text,
+                    task_type="retrieval_document"
+                )
+                
+                return result['embedding']
+                
+            except Exception as e:
+                self.logger.error(f"Gemini embedding error: {str(e)}")
+        
+        # No embedding service available
+        return None
+    
+    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+        """Calculate cosine similarity between two vectors"""
+        vec1 = np.array(vec1)
+        vec2 = np.array(vec2)
+        
+        dot_product = np.dot(vec1, vec2)
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+        
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        
+        return dot_product / (norm1 * norm2)

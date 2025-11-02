@@ -1,0 +1,157 @@
+# MCP Server Configuration for Daily Research + News Newspaper
+
+# Topics to track (modify as needed)
+topics:
+  - "graph neural networks"
+  - "protein structure prediction"
+  - "large language models"
+
+# API Keys (IMPORTANT: Replace with your actual keys)
+api_keys:
+  openai: "sk-YOUR_OPENAI_API_KEY"
+  gemini: "YOUR_GEMINI_API_KEY"
+  crossref_email: "your-email@example.com"  # For Crossref Polite Pool
+
+# AI Model Selection
+ai_models:
+  summarizer: "gemini"  # Options: "gemini" or "openai"
+  headline_generator: "gemini"
+  embeddings: "openai"  # For relevance scoring
+  gemini_model: "models/gemini-2.5-flash"  # Fast and efficient
+  openai_chat_model: "gpt-4o"  # or gpt-4-turbo
+  openai_embedding_model: "text-embedding-3-small"
+
+# Research Paper Sources
+research_sources:
+  apis:
+    - name: "arXiv"
+      enabled: true
+      base_url: "http://export.arxiv.org/api/query"
+      categories: ["cs.LG", "cs.AI", "cs.CL", "q-bio.QM"]
+    - name: "Crossref"
+      enabled: true
+      base_url: "https://api.crossref.org/works"
+    - name: "PubMed"
+      enabled: true
+      base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
+    - name: "bioRxiv"
+      enabled: true
+      base_url: "https://api.biorxiv.org/details/biorxiv"
+    - name: "Unpaywall"
+      enabled: true
+      base_url: "https://api.unpaywall.org/v2/"
+      email: "your-email@example.com"
+  
+  journals:
+    - name: "Nature"
+      rss: "https://www.nature.com/nature.rss"
+    - name: "Science"
+      rss: "https://www.science.org/rss/news_current.xml"
+
+# News Sources
+news_sources:
+  - name: "MIT Technology Review"
+    domain: "technologyreview.com"
+    rss: "https://www.technologyreview.com/feed/"
+  - name: "Ars Technica"
+    domain: "arstechnica.com"
+    rss: "https://arstechnica.com/feed/"
+  - name: "The Verge Science"
+    domain: "theverge.com"
+    rss: "https://www.theverge.com/rss/science/index.xml"
+  - name: "Google News"
+    domain: "news.google.com"
+    search_url: "https://news.google.com/rss/search?q={topic}&hl=en-US&gl=US&ceid=US:en"
+
+# Crawling & Rate Limiting
+crawling:
+  max_crawl_per_source: 200
+  rate_limit_per_second: 1.0  # requests per second per domain
+  max_depth: 2
+  respect_robots_txt: true
+  user_agent: "MCP-Research-Bot/1.0 (Research aggregation; +https://yoursite.com/bot; contact@yoursite.com)"
+  timeout_seconds: 30
+  max_retries: 3
+  backoff_factor: 2
+
+# Scoring Weights
+scoring:
+  weights:
+    relevance: 0.35
+    recency: 0.25
+    credibility: 0.20
+    novelty: 0.20
+  relevance_threshold: 0.6  # Cosine similarity threshold
+
+# Content Processing
+processing:
+  max_items_per_section: 10
+  top_research_picks: 5
+  rapid_news_count: 7
+  pdf_processing: true
+  extract_figures: true
+  languages: ["en"]
+
+# Schedule
+schedule:
+  enabled: true
+  cron: "0 2 * * *"  # Daily at 02:00 UTC
+  timezone: "UTC"
+  backfill_days: 2  # Look back this many days
+
+# Storage
+storage:
+  base_directory: "./data"
+  newspapers_dir: "./data/newspapers"
+  cache_dir: "./data/cache"
+  pdfs_dir: "./data/pdfs"
+  database:
+    type: "sqlite"  # Options: sqlite, postgresql
+    path: "./data/mcp.db"
+    # For PostgreSQL:
+    # host: "localhost"
+    # port: 5432
+    # database: "mcp_research"
+    # user: "mcp_user"
+    # password: "your_password"
+  
+  search_index:
+    type: "simple"  # Options: simple, elasticsearch, meilisearch
+    # For Elasticsearch:
+    # host: "localhost"
+    # port: 9200
+
+# Output Formats
+output:
+  formats: ["json", "html", "pdf"]
+  pdf_engine: "wkhtmltopdf"  # Options: wkhtmltopdf, playwright
+  include_metadata: true
+  include_raw_text: false  # Save full text in JSON
+
+# Notifications (optional)
+notifications:
+  enabled: false
+  slack:
+    webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  email:
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    from_address: "bot@yoursite.com"
+    to_addresses: ["recipient@example.com"]
+    username: "your_email@gmail.com"
+    password: "your_app_password"
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/mcp.log"
+  console: true
+
+# Legal & Compliance
+compliance:
+  respect_robots_txt: true
+  respect_crawl_delay: true
+  dmca_contact: "dmca@yoursite.com"
+  fair_use_only: true
+  max_excerpt_length: 500  # characters for paywalled content
