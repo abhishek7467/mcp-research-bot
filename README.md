@@ -387,7 +387,7 @@ pip install --upgrade -r requirements.txt
 ## 📞 Support
 
 - **Issues**: [GitHub Issues](https://github.com/yourusername/mcp-research-bot/issues)
-- **Email**: contact@yoursite.com
+- **Email**: abhishek746781@gmail.com
 - **Documentation**: See `docs/` folder
 
 ## 🙏 Acknowledgments

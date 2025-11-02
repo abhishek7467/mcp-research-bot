@@ -330,7 +330,8 @@ class DiscoveryManager:
             feed_url = source['rss']
         elif 'search_url' in source:
             # Google News style search
-            feed_url = source['search_url'].format(topic=' OR '.join(topics))
+            topic_query = ' OR '.join(topics)
+            feed_url = source['search_url'].format(topic=quote(topic_query))
         else:
             return items
         

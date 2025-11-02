@@ -10,7 +10,7 @@
 
 - **Topics**: artificial intelligence
 - **Max Items**: 5
-- **API Key**: GOOGLE_API_KEY_7 (AIzaSyDDaJMFU_NF9iovJ2iVycIigJng3xhim9w)
+- **API Key**: GOOGLE_API_KEY_7
 - **AI Model**: Google Gemini `models/gemini-2.5-flash`
 - **Execution Time**: 43.60 seconds
 
