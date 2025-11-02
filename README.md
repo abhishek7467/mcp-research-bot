@@ -49,7 +49,10 @@ An automated **Model Context Protocol (MCP) Server** that discovers, scrapes, pr
 ### 1. Clone and Setup
 
 ```bash
-cd "/media/abhisekhkumar/532f0f5d-32d6-4a7c-9464-0aa27dbfb9b8/Tutorials/mcp_servers/MCP Server for daily"
+
+git clone https://github.com/abhishek7467/mcp-research-bot.git
+
+cd "mcp-research-bot"
 
 # Create virtual environment
 python3 -m venv venv
